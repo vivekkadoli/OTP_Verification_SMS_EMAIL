@@ -1,8 +1,8 @@
 import { Request, Response } from 'express';
-import { User } from '../models/User';
-import { sendEmail } from '../utils/emailService';
-import { sendSMS } from '../utils/smsService';
-import { generateOTP, validateOTP } from '../utils/otpUtils';
+import User  from '../models/User';
+import { sendOTPEmail } from '../utils/emailService';
+import { sendOTPSMS } from '../utils/smsService';
+import { generateOTP } from '../utils/otpUtils';
 
 export const generateAndSendOTP = async (req: Request, res: Response) => {
     const { email, phoneNumber } = req.body;
@@ -13,9 +13,9 @@ export const generateAndSendOTP = async (req: Request, res: Response) => {
         await User.updateOne({ email }, { otp });
 
         // Send OTP via email
-        await sendEmail(email, otp);
+        await sendOTPEmail(email, 'Your OTP', `Your OTP is ${otp}`);
         // Send OTP via SMS
-        await sendSMS(phoneNumber, otp);
+        await sendOTPSMS(phoneNumber, otp);
 
         return res.status(200).json({ message: 'OTP sent successfully' });
     } catch (error) {
@@ -29,7 +29,7 @@ export const verifyOTP = async (req: Request, res: Response) => {
     try {
         const user = await User.findOne({ email });
 
-        if (!user || !validateOTP(user.otp, otp)) {
+        if (!user || !user.otp || user.otp !== otp) {
             return res.status(400).json({ message: 'Invalid OTP' });
         }
 

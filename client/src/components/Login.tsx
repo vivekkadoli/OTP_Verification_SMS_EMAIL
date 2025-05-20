@@ -1,60 +1,54 @@
 import React, { useState } from 'react';
-import { useHistory } from 'react-router-dom';
-import axios from 'axios';
+import { Link } from 'react-router-dom';
 
-const Login: React.FC = () => {
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const [error, setError] = useState('');
-    const history = useHistory();
+const API_URL = process.env.REACT_APP_API_URL;
 
-    const handleLogin = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setError('');
+export default function Login() {
+  const [form, setForm] = useState({ identifier: '', password: '' });
+  const [msg, setMsg] = useState('');
+  const [error, setError] = useState('');
 
-        try {
-            const response = await axios.post('/api/auth/login', { email, password });
-            if (response.data.success) {
-                // Handle successful login (e.g., store token, redirect)
-                history.push('/dashboard');
-            } else {
-                setError(response.data.message);
-            }
-        } catch (err) {
-            setError('Login failed. Please try again.');
-        }
-    };
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setForm({ ...form, [e.target.name]: e.target.value });
+  };
 
-    return (
-        <div className="login-container">
-            <h2>Login</h2>
-            <form onSubmit={handleLogin}>
-                <div>
-                    <label>Email:</label>
-                    <input
-                        type="email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        required
-                    />
-                </div>
-                <div>
-                    <label>Password:</label>
-                    <input
-                        type="password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        required
-                    />
-                </div>
-                {error && <p className="error">{error}</p>}
-                <button type="submit">Login</button>
-            </form>
-            <p>
-                <a href="/forgot-password">Forgot Password?</a>
-            </p>
-        </div>
-    );
-};
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setMsg('');
+    setError('');
+    try {
+      const res = await fetch(`${API_URL}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setMsg(data.message || 'Login successful!');
+      } else {
+        setError(data.message || 'Login failed');
+      }
+    } catch {
+      setError('Network error');
+    }
+  };
 
-export default Login;
+  return (
+    <div>
+      <h2>Login</h2>
+      <form onSubmit={handleSubmit} autoComplete="off">
+        <input name="identifier" placeholder="Mobile No. or Email" onChange={handleChange} required />
+        <input name="password" type="password" placeholder="Password" onChange={handleChange} required />
+        <button type="submit">Login</button>
+        {msg && <div className="success">{msg}</div>}
+        {error && <div className="error">{error}</div>}
+      </form>
+      <div className="link">
+        <Link to="/forgot-password">Forgot password?</Link>
+      </div>
+      <div className="link">
+        Don't have an account? <Link to="/register">Register</Link>
+      </div>
+    </div>
+  );
+}

@@ -1,15 +1,11 @@
 import { Router } from 'express';
-import { registerUser, loginUser, forgotPassword } from '../controllers/authController';
+import { generateAndSendOTP, resetPassword } from '../controllers/authController';
 
 const router = Router();
 
-// Route for user registration
-router.post('/register', registerUser);
-
-// Route for user login
-router.post('/login', loginUser);
-
-// Route for forgot password
-router.post('/forgot-password', forgotPassword);
+// router.post('/register', register);
+// router.post('/login', login);
+router.post('/otp/generate', generateAndSendOTP);
+router.post('/otp/validate', resetPassword);
 
 export default router;

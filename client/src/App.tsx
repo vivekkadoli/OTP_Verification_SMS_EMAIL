@@ -1,22 +1,24 @@
 import React from 'react';
-import { BrowserRouter as Router, Route, Switch } from 'react-router-dom';
+import { BrowserRouter as Router, Route, Switch, Redirect } from 'react-router-dom';
 import Register from './components/Register';
 import Login from './components/Login';
 import ForgotPassword from './components/ForgotPassword';
 
-const App: React.FC = () => {
+import './App.css';
+
+function App() {
   return (
     <Router>
-      <Switch>
-        <Route path="/register" component={Register} />
-        <Route path="/login" component={Login} />
-        <Route path="/forgot-password" component={ForgotPassword} />
-        <Route path="/" exact>
-          <h1>Welcome to the OTP App</h1>
-        </Route>
-      </Switch>
+      <div className="container">
+        <Switch>
+          <Route path="/register" component={Register} />
+          <Route path="/login" component={Login} />
+          <Route path="/forgot-password" component={ForgotPassword} />
+          <Redirect to="/register" />
+        </Switch>
+      </div>
     </Router>
   );
-};
+}
 
 export default App;

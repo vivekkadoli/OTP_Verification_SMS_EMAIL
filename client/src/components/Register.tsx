@@ -1,67 +1,62 @@
 import React, { useState } from 'react';
-import axios from 'axios';
+import { Link, useHistory } from 'react-router-dom';
 
-const Register: React.FC = () => {
-    const [email, setEmail] = useState('');
-    const [phone, setPhone] = useState('');
-    const [password, setPassword] = useState('');
-    const [error, setError] = useState('');
-    const [success, setSuccess] = useState('');
+const API_URL = process.env.REACT_APP_API_URL;
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setError('');
-        setSuccess('');
+export default function Register() {
+  const history = useHistory();
+  const [form, setForm] = useState({
+    firstName: '',
+    lastName: '',
+    phoneNumber: '',
+    email: '',
+    password: ''
+  });
+  const [msg, setMsg] = useState('');
+  const [error, setError] = useState('');
 
-        try {
-            const response = await axios.post('/api/auth/register', {
-                email,
-                phone,
-                password,
-            });
-            setSuccess('Registration successful! Please check your email for verification.');
-        } catch (err) {
-            setError('Registration failed. Please try again.');
-        }
-    };
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setForm({ ...form, [e.target.name]: e.target.value });
+  };
 
-    return (
-        <div>
-            <h2>Register</h2>
-            <form onSubmit={handleSubmit}>
-                <div>
-                    <label>Email:</label>
-                    <input
-                        type="email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        required
-                    />
-                </div>
-                <div>
-                    <label>Phone:</label>
-                    <input
-                        type="text"
-                        value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
-                        required
-                    />
-                </div>
-                <div>
-                    <label>Password:</label>
-                    <input
-                        type="password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        required
-                    />
-                </div>
-                <button type="submit">Register</button>
-            </form>
-            {error && <p style={{ color: 'red' }}>{error}</p>}
-            {success && <p style={{ color: 'green' }}>{success}</p>}
-        </div>
-    );
-};
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setMsg('');
+    setError('');
+    try {
+      const res = await fetch(`${API_URL}/api/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setMsg(data.message || 'Registration successful!');
+        setTimeout(() => history.push('/login'), 1500);
+      } else {
+        setError(data.message || 'Registration failed');
+      }
+    } catch {
+      setError('Network error');
+    }
+  };
 
-export default Register;
+  return (
+    <div>
+      <h2>Register</h2>
+      <form onSubmit={handleSubmit} autoComplete="off">
+        <input name="firstName" placeholder="First Name" onChange={handleChange} required />
+        <input name="lastName" placeholder="Last Name" onChange={handleChange} required />
+        <input name="phoneNumber" placeholder="Mobile No." onChange={handleChange} required />
+        <input name="email" placeholder="Email" type="email" onChange={handleChange} required />
+        <input name="password" type="password" placeholder="Password" onChange={handleChange} required />
+        <button type="submit">Register</button>
+        {msg && <div className="success">{msg}</div>}
+        {error && <div className="error">{error}</div>}
+      </form>
+      <div className="link">
+        Already have an account? <Link to="/login">Login</Link>
+      </div>
+    </div>
+  );
+}

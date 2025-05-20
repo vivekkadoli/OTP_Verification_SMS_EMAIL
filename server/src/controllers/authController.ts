@@ -1,71 +1,63 @@
 import { Request, Response } from 'express';
-import User from '../models/User';
-import { sendEmail } from '../utils/emailService';
-import { sendSMS } from '../utils/smsService';
 import bcrypt from 'bcrypt';
-import jwt from 'jsonwebtoken';
+import User from '../models/User';
+import { generateOTP } from '../utils/otpUtils';
+import { sendOTPEmail } from '../utils/emailService';
+import { sendOTPSMS } from '../utils/smsService';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret';
+export const generateAndSendOTP = async (req: Request, res: Response) => {
+  try {
+    const { identifier } = req.body;
+    const user = await User.findOne({
+      $or: [{ email: identifier }, { phoneNumber: identifier }]
+    });
+    if (!user) return res.status(400).json({ message: 'User not found' });
 
-export const register = async (req: Request, res: Response) => {
-    const { email, phone, password } = req.body;
+    const otp = generateOTP();
+    const expiry = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
 
-    try {
-        const existingUser = await User.findOne({ email });
-        if (existingUser) {
-            return res.status(400).json({ message: 'User already exists' });
-        }
+    user.otp = otp;
+    user.otpExpiry = expiry;
+    await user.save();
 
-        const hashedPassword = await bcrypt.hash(password, 10);
-        const newUser = new User({ email, phone, password: hashedPassword });
-        await newUser.save();
+    // Remove or comment out these lines:
+    // console.log(`OTP for ${user.email}: ${otp}`);
+    // console.log(`OTP for ${user.phoneNumber}: ${otp}`);
 
-        res.status(201).json({ message: 'User registered successfully' });
-    } catch (error) {
-        res.status(500).json({ message: 'Server error' });
-    }
+    // Actually send OTP
+    if (user.phoneNumber) await sendOTPSMS(user.phoneNumber, otp);
+    // if (user.email) await sendOTPEmail(user.email, otp);
+
+    if (user.email) await sendOTPEmail(user.email, otp, `Your OTP code is: ${otp}`);
+
+    res.json({ message: 'OTP sent to your registered email and mobile.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
 };
 
-export const login = async (req: Request, res: Response) => {
-    const { email, password } = req.body;
-
-    try {
-        const user = await User.findOne({ email });
-        if (!user) {
-            return res.status(400).json({ message: 'Invalid credentials' });
-        }
-
-        const isMatch = await bcrypt.compare(password, user.password);
-        if (!isMatch) {
-            return res.status(400).json({ message: 'Invalid credentials' });
-        }
-
-        const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '1h' });
-        res.json({ token });
-    } catch (error) {
-        res.status(500).json({ message: 'Server error' });
+export const resetPassword = async (req: Request, res: Response) => {
+  try {
+    const { identifier, otp, password } = req.body;
+    const user = await User.findOne({
+      $or: [{ email: identifier }, { phoneNumber: identifier }]
+    });
+    if (!user || !user.otp || !user.otpExpiry) {
+      return res.status(400).json({ message: 'OTP not requested or expired' });
     }
-};
-
-export const forgotPassword = async (req: Request, res: Response) => {
-    const { email } = req.body;
-
-    try {
-        const user = await User.findOne({ email });
-        if (!user) {
-            return res.status(400).json({ message: 'User not found' });
-        }
-
-        const otp = Math.floor(100000 + Math.random() * 900000).toString();
-        // Save OTP to user or database for validation later
-        user.otp = otp;
-        await user.save();
-
-        await sendEmail(user.email, 'Your OTP', `Your OTP is ${otp}`);
-        await sendSMS(user.phone, `Your OTP is ${otp}`);
-
-        res.json({ message: 'OTP sent to email and phone' });
-    } catch (error) {
-        res.status(500).json({ message: 'Server error' });
+    if (user.otp !== otp || user.otpExpiry < new Date()) {
+      return res.status(400).json({ message: 'Invalid or expired OTP' });
     }
+
+    user.password = await bcrypt.hash(password, 10);
+    user.otp = undefined;
+    user.otpExpiry = undefined;
+    await user.save();
+
+    res.json({ message: 'Password reset successful' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
 };
